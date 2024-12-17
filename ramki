@@ -1,0 +1,97 @@
+library(shiny)
+library(shinydashboard)
+library(DT)
+library(ggplot2)
+
+# Tworzenie listy ramek danych
+set.seed(123)
+list_of_dfs <- lapply(1:10, function(i) {
+    data.frame(
+        Date = seq.Date(from = Sys.Date() - 9, to = Sys.Date(), by = "day"),
+        Cars_Sold = sample(10:50, 10, replace = TRUE),
+        Label = paste("Ramka", i)
+    )
+})
+names(list_of_dfs) <- paste("Ramka", 1:10)
+
+# Dodanie opcji "Wszystkie ramki"
+all_choices <- c("Wszystkie ramki", names(list_of_dfs))
+
+# UI aplikacji
+ui <- dashboardPage(
+    dashboardHeader(title = "Wybór Ramki Danych"),
+    dashboardSidebar(
+        selectInput("selected_dfs", "Wybierz ramki danych:", 
+                    choices = all_choices, multiple = FALSE),
+        actionButton("show_button", "Pokaż")
+    ),
+    dashboardBody(
+        tags$head(
+            tags$style(HTML(
+                ".box.box-info {
+          background-color: #f0f8ff;
+          border-top: 3px solid #5bc0de;
+        }
+        .box.box-primary {
+          background-color: #f9f9f9;
+          border-top: 3px solid #337ab7;
+        }
+        .box-title {
+          font-weight: bold;
+        }
+        .frame-title {
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 20px;
+          text-align: center;
+        }"
+            ))
+        ),
+        fluidRow(
+            uiOutput("frame_title"),
+            box(title = tags$div("Wybrana Ramka Danych", style = "font-family: Arial; font-size: 20px;"), width = 12, status = "info", collapsible = TRUE, collapsed = FALSE,
+                DTOutput("selected_table")),
+            box(title = tags$div("Wykres Sprzedaży", style = "font-family: Courier; font-size: 18px;"), width = 12, status = "primary", collapsible = TRUE, collapsed = FALSE,
+                plotOutput("sales_plot"))
+        )
+    )
+)
+
+# Serwer aplikacji
+server <- function(input, output, session) {
+    # Reaktywny obiekt dla wybranej ramki danych
+    selected_data <- eventReactive(input$show_button, {
+        req(input$selected_dfs)
+        if (input$selected_dfs == "Wszystkie ramki") {
+            NULL  # Wyświetlamy tylko pojedyncze ramki, więc ignorujemy "Wszystkie ramki"
+        } else {
+            list_of_dfs[[input$selected_dfs]]
+        }
+    })
+    
+    # Wyświetlanie nazwy wybranej ramki danych
+    output$frame_title <- renderUI({
+        req(input$selected_dfs)
+        if (input$selected_dfs != "Wszystkie ramki") {
+            div(class = "frame-title", paste("Wybrana ramka danych: ", input$selected_dfs))
+        }
+    })
+    
+    # Wyświetlanie wybranej ramki danych
+    output$selected_table <- renderDT({
+        req(selected_data())
+        datatable(selected_data())
+    })
+    
+    # Wyświetlanie wykresu sprzedaży
+    output$sales_plot <- renderPlot({
+        req(selected_data())
+        ggplot(selected_data(), aes(x = Date, y = Cars_Sold)) +
+            geom_bar(stat = "identity", fill = "blue", color = "black") +
+            labs(title = "Sprzedaż Samochodów w Czasie", x = "Data", y = "Liczba Sprzedanych Samochodów") +
+            theme_minimal()
+    })
+}
+
+# Uruchomienie aplikacji
+shinyApp(ui = ui, server = server)
