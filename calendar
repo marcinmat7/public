@@ -1,0 +1,114 @@
+# Instalacja wymaganych pakietów
+if (!require("shiny")) install.packages("shiny")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("lubridate")) install.packages("lubridate")
+
+library(shiny)
+library(ggplot2)
+library(lubridate)
+
+# Dane do wyświetlenia w kalendarzu
+events_data <- data.frame(
+    date = as.Date(c("2024-12-21", "2024-12-23", "2024-12-25", "2024-12-28")),
+    value = c(3, 5, 2, 7)  # Liczby do wyświetlenia
+)
+
+# Funkcja do rysowania kalendarza
+plot_calendar <- function(year, month, events) {
+    # Tworzenie ramki danych dla całego miesiąca
+    start_date <- as.Date(paste(year, month, "01", sep = "-"))
+    end_date <- ceiling_date(start_date, "month") - 1
+    dates <- seq.Date(start_date, end_date, by = "day")
+    
+    calendar_data <- data.frame(
+        date = dates,
+        day = wday(dates, label = TRUE, week_start = 1),  # Dni tygodnia
+        week = week(dates) - min(week(dates)) + 1,  # Tygodnie miesiąca
+        value = ifelse(dates %in% events$date, 
+                       events$value[match(dates, events$date)], 
+                       NA)  # Przypisywanie wartości lub brak
+    )
+    calendar_data$week <- cumsum(calendar_data$day == "pon\\.") + 1
+    
+    # Wymuszenie typu numerycznego dla kolumny "value"
+    calendar_data$value <- as.numeric(calendar_data$value)
+    
+    # Rysowanie kalendarza za pomocą ggplot2
+    ggplot(calendar_data, aes(x = day, y = -week)) +  # Odwracamy oś Y
+        geom_tile(aes(fill = value), color = "white", height = 0.9, width = 0.9) +
+        geom_text(aes(label = day(date)), size = 7, color = "black") +
+        scale_fill_gradient(
+            low = "lightblue", 
+            high = "darkblue", 
+            na.value = "gray90"  # Obsługa brakujących wartości
+        ) +
+        labs(
+            title = paste("Kalendarz -", month.name[month], year),
+            fill = "Wartość"
+        ) +
+        theme_minimal() +
+        theme(
+            axis.text.x = element_text(size = 12, color = "black", face = "bold"),
+            axis.text.y = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title = element_blank(),
+            panel.grid = element_blank(),
+            plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
+        )
+}
+
+# UI
+ui <- fluidPage(
+    titlePanel("Kalendarz z Liczbami"),
+    sidebarLayout(
+        sidebarPanel(
+            h4("Nawigacja po kalendarzu:"),
+            actionButton("prev_month", "← Poprzedni miesiąc", icon = icon("arrow-left")),
+            actionButton("next_month", "Następny miesiąc →", icon = icon("arrow-right")),
+            hr(),
+            h5("Legenda:"),
+            p("Każda komórka reprezentuje dzień miesiąca."),
+            p("Kolory odpowiadają wartościom przypisanym do dni."),
+        ),
+        mainPanel(
+            plotOutput("calendar_plot", height = "600px")  # Wyższy wykres
+        )
+    )
+)
+
+# Serwer
+server <- function(input, output, session) {
+    # Reactive values do przechowywania aktualnego miesiąca i roku
+    current_date <- reactiveValues(
+        year = 2024,
+        month = 12
+    )
+    
+    # Obsługa przycisku "Poprzedni miesiąc"
+    observeEvent(input$prev_month, {
+        if (current_date$month == 1) {
+            current_date$month <- 12
+            current_date$year <- current_date$year - 1
+        } else {
+            current_date$month <- current_date$month - 1
+        }
+    })
+    
+    # Obsługa przycisku "Następny miesiąc"
+    observeEvent(input$next_month, {
+        if (current_date$month == 12) {
+            current_date$month <- 1
+            current_date$year <- current_date$year + 1
+        } else {
+            current_date$month <- current_date$month + 1
+        }
+    })
+    
+    # Generowanie wykresu kalendarza
+    output$calendar_plot <- renderPlot({
+        plot_calendar(current_date$year, current_date$month, events_data)
+    })
+}
+
+# Uruchomienie aplikacji
+shinyApp(ui = ui, server = server)
