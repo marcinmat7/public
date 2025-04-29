@@ -1,0 +1,30 @@
+library(shiny)
+
+# UI
+ui <- fluidPage(
+  titlePanel("Prosta aplikacja Shiny"),
+  sidebarLayout(
+    sidebarPanel(
+      textInput("tekst", "Wpisz coś:", ""),
+      actionButton("wyslij", "Wyślij")
+    ),
+    mainPanel(
+      h3("Wynik:"),
+      textOutput("wynik")
+    )
+  )
+)
+
+# Serwer
+server <- function(input, output) {
+  tekst_reaktywny <- eventReactive(input$wyslij, {
+    paste("Wprowadziłeś:", input$tekst)
+  })
+  
+  output$wynik <- renderText({
+    tekst_reaktywny()
+  })
+}
+
+# Uruchomienie aplikacji
+shinyApp(ui = ui, server = server)
