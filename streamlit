@@ -1,0 +1,30 @@
+import streamlit as st
+
+# Przykładowa funkcja – zamień ją na swoją
+def funkcja_1(tekst):
+    return f"Odpowiedź na: {tekst}"
+
+# Inicjalizacja historii konwersacji
+if "historia" not in st.session_state:
+    st.session_state.historia = []
+
+st.title("Aplikacja z funkcją funkcja_1")
+
+# Pole tekstowe do wpisania wiadomości
+wiadomosc = st.text_input("Wpisz wiadomość:", key="input")
+
+# Obsługa przycisku
+if st.button("Wyślij"):
+    if wiadomosc.strip():
+        odpowiedz = funkcja_1(wiadomosc)
+        st.session_state.historia.append(("Ty", wiadomosc))
+        st.session_state.historia.append(("Funkcja", odpowiedz))
+        st.session_state.input = ""  # Czyści pole wejściowe
+
+# Wyświetlanie historii konwersacji
+st.markdown("## Historia konwersacji")
+for nadawca, tekst in st.session_state.historia:
+    if nadawca == "Ty":
+        st.markdown(f"**Ty:** {tekst}")
+    else:
+        st.markdown(f"**Funkcja:** {tekst}")
