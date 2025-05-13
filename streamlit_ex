@@ -1,0 +1,38 @@
+import streamlit as st
+import pandas as pd
+import altair as alt
+
+# Przykładowe dane
+data = {
+    'Kategoria': ['A', 'B', 'C', 'D'],
+    '2022': [10, 20, 30, 40],
+    '2023': [15, 25, 35, 45],
+    '2024': [20, 30, 40, 50]
+}
+
+# Konwersja do DataFrame
+df = pd.DataFrame(data)
+
+# Tytuł aplikacji
+st.title("Interaktywny wykres słupkowy")
+
+# Wybór roku
+rok = st.selectbox("Wybierz rok:", ['2022', '2023', '2024'])
+
+# Przygotowanie danych do wykresu
+df_wykres = pd.DataFrame({
+    'Kategoria': df['Kategoria'],
+    'Wartość': df[rok]
+})
+
+# Tworzenie wykresu słupkowego
+chart = alt.Chart(df_wykres).mark_bar().encode(
+    x='Kategoria',
+    y='Wartość',
+    tooltip=['Kategoria', 'Wartość']
+).properties(
+    title=f"Wartości dla roku {rok}"
+)
+
+# Wyświetlenie wykresu
+st.altair_chart(chart, use_container_width=True)
