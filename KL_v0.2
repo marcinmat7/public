@@ -1,0 +1,171 @@
+FP <- function(x) {
+    
+    # if(x < 1){return(0)}
+    # if(1<=x & x <3){return((x-1)/2)}
+    # if(3<=x){return(1)}
+    return((x-1)/2)
+}
+FP_1 <- function(x) {
+    return(2*x+1)
+    }
+
+FQ <- function(x) {
+    # 
+    # if(x < 1){return(0)}
+    # if(1<=x & x <3){return((x-1)^2/4)}
+    # if(3<=x){return(1)}
+    
+    
+    return((x-1)^2/4)
+}
+FQ_1 <- function(x) {return(sqrt(4*x) + 1)}
+
+psi_results <- c()
+
+for (n_buckets in 5:10000) {
+print(n_buckets)
+dlugosc_przedzialu <- 2 / n_buckets 
+lewe_krance <- 1 + 0:(n_buckets-1) * dlugosc_przedzialu
+prawe_krance <- 1 + dlugosc_przedzialu + 0:(n_buckets-1) * dlugosc_przedzialu
+
+df <- data.frame(lewe_krance, prawe_krance)
+df$u_P <- FP(df$prawe_krance) - FP(df$lewe_krance)
+df$u_Q <- FQ(df$prawe_krance) - FQ(df$lewe_krance)
+
+psi <- sum((df$u_P - df$u_Q) * log(df$u_P / df$u_Q, base = exp(1)))
+psi_results <- c(psi_results, psi)
+
+}
+
+table(order(psi_results) == 1:length(psi_results))
+
+
+
+# Przykładowe dane
+# set.seed(123)
+x <- FP_1(runif(n = 100000, min = 0, max = 1))
+y <- FQ_1(runif(n = 100000, min = 0, max = 1))
+
+# ?density
+# install.packages(ks)
+
+
+### Density
+
+#     dens_x <- density(x, from = min(c(x, y)) - 0.05, to = max(c(x, y)) +  0.05, n = 2^10, kernel = "cosine")
+#     dens_y <- density(y, from = min(c(x, y)), to = max(c(x, y)), n = 2^10, kernel = "cosine")
+#     
+#     plot(1:length(x), sort(x))
+#     
+#     plot(dens_x$x, dens_x$y)
+#     plot(dens_y$x, dens_y$y)
+# 
+# #### locfit 
+#     
+#     library(locfit)
+#     ?locfit
+#     fit_locfit <- locfit(~x, family="density", deg=3, kern="gauss", xlim=c(1,3))
+#     
+#     # Wykres
+#     plot(fit_locfit, xlab="x", ylab="Gęstość", main="Estymacja gęstości - locfit", xlim=c(0.5,3.5))
+    
+#### polspline
+    
+    library(polspline)
+    
+    # Dopasowanie funkcji logspline z ograniczeniem wsparcia
+    
+    fit_logspline <- logspline(x, lbound=1, ubound=3)
+    dens_x <- NULL
+    dens_x$x <- seq(1, 3, length.out = 1000)
+    dens_x$y <- dlogspline(dens_x$x, fit_logspline)
+    
+    # Wykres
+    # plot(dens_x$x, dens_x$y, type = "l", xlab = "x", ylab = "Gęstość", 
+    #      main = "Estymacja gęstości - logspline", col = "blue")
+
+    # Wartości do wykresu
+    fit_logspline <- logspline(y, lbound=1, ubound=3)
+    dens_y <- NULL
+    dens_y$x <- seq(1, 3, length.out = 1000)
+    dens_y$y <- dlogspline(dens_x$x, fit_logspline)
+    
+    
+        
+# Normalizacja gęstości, żeby były traktowane jak funkcje prawdopodobieństwa
+dx <- dens_x$x
+px <- dens_x$y / sum(dens_x$y)
+qy <- dens_y$y / sum(dens_y$y)
+
+# Aby uniknąć log(0), dodajemy małe epsilon
+epsilon <- 1e-10
+px <- px + epsilon
+qy <- qy + epsilon
+
+# Obliczenie KL-divergencji: KL(P || Q)
+kl_pq <- sum(px * log(px / qy))
+
+# Obliczenie KL(Q || P)
+kl_qp <- sum(qy * log(qy / px))
+
+# Symetryczna dywergencja KL
+kl_sym <- kl_pq + kl_qp
+kl_sym
+
+
+###### losujemy)punkty
+
+
+x <- FP_1(runif(n = 1000000, min = 0, max = 1))
+y <- FQ_1(runif(n = 1000000, min = 0, max = 1))
+
+
+### Buckety:
+
+    buckets <- quantile(x = x, probs = 0:7/10)
+    x_buckets <- table(cut(x, buckets, include.lowest = TRUE, right = FALSE, labels = NULL))
+    x_buckets <- x_buckets / sum(x_buckets)
+    y_buckets <- table(cut(y, buckets, include.lowest = TRUE, right = FALSE, labels = NULL))
+    y_buckets <- y_buckets / sum(y_buckets)
+    
+    psi_bucket <- sum((x_buckets - y_buckets) * log(x_buckets / y_buckets, base = exp(1)))
+    
+# KDE
+    
+    range_common <- range(c(1, 3))
+    grid_points <- 100000
+    
+    # KDE z ustalonym zakresem i liczbą punktów
+    dens_x <- density(x, from = range_common[1], to = range_common[2], n = grid_points)
+    dens_y <- density(y, from = range_common[1], to = range_common[2], n = grid_points)
+    
+    # Oś X (wspólna)
+    dx <- dens_x$x
+    
+    # Krok między punktami
+    delta <- dx[2] - dx[1]
+    
+    # Wartości gęstości
+    px <- dens_x$y
+    qy <- dens_y$y
+    
+    # Normalizacja funkcji gęstości do całki 1
+    px <- px / sum(px * delta)
+    qy <- qy / sum(qy * delta)
+    
+    # Stabilizacja: unikamy log(0)
+    epsilon <- 1e-10
+    px <- pmax(px, epsilon)
+    qy <- pmax(qy, epsilon)
+    
+    # Obliczenie KL-divergencji: KL(P || Q) i KL(Q || P)
+    kl_pq <- sum(px * log(px / qy)) * delta
+    kl_qp <- sum(qy * log(qy / px)) * delta
+    
+    # Symetryczna dywergencja KL
+    kl_sym <- kl_pq + kl_qp
+    # kl_sym
+    
+    print(psi_bucket)
+    print(kl_sym)
+ 
